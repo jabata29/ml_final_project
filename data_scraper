@@ -1,0 +1,149 @@
+#!/bin/bash
+
+categories=("mammal" "reptile" "amphibian" "bird" "insect" "fish")
+IMAGES_PER_CATEGORY=100
+USER_AGENT="Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0"
+
+for category in "${categories[@]}"; do
+    echo "Processing: $category"
+
+    # create category directory
+    mkdir -p "animal data/$category"
+
+    count=0
+    page=1
+
+    while [ $count -lt $IMAGES_PER_CATEGORY ]; do
+        echo "  Page $page..."
+
+        # download search results page
+        page_content=$(curl -s -H "User-Agent: $USER_AGENT" \
+            "https://www.pexels.com/search/$category/?page=$page")
+
+        if [ -z "$page_content" ]; then
+            echo "  Failed to get page $page"
+            break
+        fi
+
+        # Extract photo detail page URLs (not direct image URLs). look for links to photo detail pages
+        echo "$page_content" | \
+            grep -oE 'href="/photo/[^"]+"' | \
+            cut -d'"' -f2 | \
+            sort -u | \
+            head -50 > temp_photo_links.txt
+
+        if [ ! -s temp_photo_links.txt ]; then
+            echo "$page_content" | \
+                grep -oE 'href="https://www\.pexels\.com/photo/[^"]+"' | \
+                cut -d'"' -f2 | \
+                sort -u | \
+                head -50 > temp_photo_links.txt
+        fi
+
+        if [ ! -s temp_photo_links.txt ]; then
+            echo "  No photo links found on page $page"
+            rm -f temp_photo_links.txt
+            break
+        fi
+
+        echo "  Found $(wc -l < temp_photo_links.txt) photo detail pages"
+
+        # Process each photo detail page
+        while read -r photo_link && [ $count -lt $IMAGES_PER_CATEGORY ]; do
+            # Make sure we have full URL
+            if [[ ! "$photo_link" =~ ^https:// ]]; then
+                photo_link="https://www.pexels.com$photo_link"
+            fi
+
+            echo "    Visiting detail page: $(basename "$photo_link")"
+
+            # Get the photo detail page
+            detail_page=$(curl -s -H "User-Agent: $USER_AGENT" "$photo_link")
+
+            if [ -z "$detail_page" ]; then
+                echo "    Failed to load detail page"
+                sleep 0.5
+                continue
+            fi
+
+            # Try to find download button/link
+            # Look for download button - Pexels often has data attributes
+            download_url=$(echo "$detail_page" | \
+                grep -oE 'download="[^"]+"|href="[^"]+"[^>]*download' | \
+                grep -oE 'href="[^"]+"' | \
+                cut -d'"' -f2 | \
+                head -1)
+
+            # Alternative: Look for the actual image source in detail page
+            if [ -z "$download_url" ]; then
+                download_url=$(echo "$detail_page" | \
+                    grep -oE 'property="og:image"[^>]*content="[^"]+"' | \
+                    cut -d'"' -f4)
+            fi
+
+            # Another alternative: Look for high-res image URL
+            if [ -z "$download_url" ]; then
+                download_url=$(echo "$detail_page" | \
+                    grep -oE 'src="https://images\.pexels\.com/photos/[^"?]+\.(jpg|jpeg|png)[^"]*"' | \
+                    cut -d'"' -f2 | \
+                    head -1)
+            fi
+
+            if [ -z "$download_url" ]; then
+                echo "    Could not find download URL"
+                sleep 0.5
+                continue
+            fi
+
+            filename="${category}_$(printf "%04d" $count).jpg"
+            filepath="animal data/$category/$filename"
+
+            if [ -f "$filepath" ]; then
+                echo "    Skipping existing file"
+                continue
+            fi
+
+            echo "    Downloading image $((count + 1))/$IMAGES_PER_CATEGORY"
+
+            curl -s -L -H "User-Agent: $USER_AGENT" \
+                --max-time 30 \
+                "$download_url" \
+                -o "$filepath.tmp"
+
+            if [ $? -eq 0 ] && [ -s "$filepath.tmp" ]; then
+                filetype=$(file -b --mime-type "$filepath.tmp" 2>/dev/null || echo "unknown")
+
+                if [[ "$filetype" == image/* ]]; then
+                    mv "$filepath.tmp" "$filepath"
+                    ((count++))
+                    echo "    Downloaded successfully ($(du -h "$filepath" | cut -f1))"
+                else
+                    rm -f "$filepath.tmp"
+                    echo "    Not an image (got: $filetype)"
+                fi
+            else
+                rm -f "$filepath.tmp"
+                echo "    Download failed"
+            fi
+
+            sleep 1.5
+
+        done < temp_photo_links.txt
+
+        ((page++))
+
+        # Safety check
+        if [ $page -gt 20 ]; then
+            echo "  Reached maximum page limit for $category"
+            break
+        fi
+
+        rm -f temp_photo_links.txt
+        sleep 2
+
+    done
+
+    echo "  Total downloaded for $category: $count images"
+done
+
+echo "Done! Images saved in 'animal data/' directory"

@@ -1,12 +1,3 @@
-"""
-PCA Visualizations for Animal Classification Project
-
-This script creates the two required 3D visualizations:
-1. f(θ) - Model weight evolution during training
-2. g(x) - Prediction surface in input space
-
-Run this AFTER training your model with the modified training script.
-"""
 
 import torch
 import torch.nn as nn
@@ -152,11 +143,6 @@ def visualize_weight_evolution():
 
 # VISUALIZATION 2: g(x) - Prediction Surface
 def visualize_prediction_surface():
-    """
-    Creates 3D plot showing predictions across input space.
-    X, Y = PCA components of input images
-    Z = Model's predicted class
-    """
     print("\nCreating Visualization 2: Prediction Surface g(x)")
     
     # Load best model

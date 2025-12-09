@@ -1,16 +1,11 @@
 """
-Animal Classification - Baseline Training Script
-This script trains a ResNet18 model to classify animals into 6 categories.
+Animal Classification - Training Script with PCA Support
+This version saves weight snapshots during training for PCA visualization.
 
 Expected folder structure:
-data/
+animal data/
     mammal/
-        image1.jpg
-        image2.jpg
-        ...
     reptile/
-        image1.jpg
-        ...
     bird/
     fish/
     amphibian/
@@ -35,7 +30,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # CONFIGURATION
-DATA_DIR = "animal data"  # Your main data folder
+DATA_DIR = "animal data"
 CLASSES = ["mammal", "reptile", "bird", "fish", "amphibian", "insect"]
 IMG_SIZE = 224
 BATCH_SIZE = 32
@@ -60,7 +55,6 @@ class AnimalDataset(Dataset):
         try:
             image = Image.open(img_path).convert('RGB')
         except:
-            # If image fails to load, return a blank image
             image = Image.new('RGB', (IMG_SIZE, IMG_SIZE), (0, 0, 0))
         
         label = self.labels[idx]
@@ -95,8 +89,7 @@ def load_dataset(data_dir):
     
     return image_paths, labels
 
-# DATA TRANSFORMS 
-# Training augmentations (as suggested by ChatGPT)
+# DATA TRANSFORMS
 train_transform = transforms.Compose([
     transforms.Resize((IMG_SIZE, IMG_SIZE)),
     transforms.RandomHorizontalFlip(),
@@ -107,7 +100,6 @@ train_transform = transforms.Compose([
                        std=[0.229, 0.224, 0.225])
 ])
 
-# Validation/Test transforms (no augmentation)
 val_test_transform = transforms.Compose([
     transforms.Resize((IMG_SIZE, IMG_SIZE)),
     transforms.ToTensor(),
@@ -118,7 +110,6 @@ val_test_transform = transforms.Compose([
 # SPLIT DATA
 def split_data(image_paths, labels):
     """Split data into train, val, test sets with stratification"""
-    # First split: train+val vs test
     train_val_paths, test_paths, train_val_labels, test_labels = train_test_split(
         image_paths, labels, 
         test_size=TEST_SPLIT, 
@@ -126,7 +117,6 @@ def split_data(image_paths, labels):
         random_state=42
     )
     
-    # Second split: train vs val
     val_ratio = VAL_SPLIT / (TRAIN_SPLIT + VAL_SPLIT)
     train_paths, val_paths, train_labels, val_labels = train_test_split(
         train_val_paths, train_val_labels,
@@ -146,12 +136,17 @@ def split_data(image_paths, labels):
 def get_model(num_classes=6):
     """Load pretrained ResNet18 and modify for our task"""
     model = models.resnet18(pretrained=True)
-    
-    # Replace final layer for 6 classes
     num_features = model.fc.in_features
     model.fc = nn.Linear(num_features, num_classes)
-    
     return model
+
+# WEIGHT SNAPSHOT FUNCTION
+def get_weight_snapshot(model):
+    """Get flattened snapshot of all model weights for PCA"""
+    weights = []
+    for param in model.parameters():
+        weights.append(param.data.cpu().numpy().flatten())
+    return np.concatenate(weights)
 
 # TRAINING FUNCTION
 def train_one_epoch(model, train_loader, criterion, optimizer, device):
@@ -164,16 +159,13 @@ def train_one_epoch(model, train_loader, criterion, optimizer, device):
     for images, labels in train_loader:
         images, labels = images.to(device), labels.to(device)
         
-        # Forward pass
         optimizer.zero_grad()
         outputs = model(images)
         loss = criterion(outputs, labels)
         
-        # Backward pass
         loss.backward()
         optimizer.step()
         
-        # Statistics
         running_loss += loss.item() * images.size(0)
         _, predicted = torch.max(outputs, 1)
         total += labels.size(0)
@@ -183,7 +175,7 @@ def train_one_epoch(model, train_loader, criterion, optimizer, device):
     epoch_acc = correct / total
     return epoch_loss, epoch_acc
 
-# VALIDATION FUNCTION 
+# VALIDATION FUNCTION
 def validate(model, val_loader, criterion, device):
     """Validate the model"""
     model.eval()
@@ -209,9 +201,7 @@ def validate(model, val_loader, criterion, device):
 
 # MAIN TRAINING LOOP
 def main():
-    print("="*50)
     print("Animal Classification Training")
-    print("="*50)
     
     # Load data
     image_paths, labels = load_dataset(DATA_DIR)
@@ -249,6 +239,9 @@ def main():
         'val_acc': []
     }
     
+    # Weight history for PCA
+    weight_history = []
+    
     best_val_acc = 0.0
     
     print("\nStarting training...")
@@ -256,6 +249,10 @@ def main():
     # Training loop
     for epoch in range(NUM_EPOCHS):
         print(f"\nEpoch {epoch+1}/{NUM_EPOCHS}")
+        
+        # Save weight snapshot before training this epoch
+        weight_snapshot = get_weight_snapshot(model)
+        weight_history.append(weight_snapshot)
         
         # Train
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
@@ -276,10 +273,19 @@ def main():
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             torch.save(model.state_dict(), 'best_model.pth')
-            print(f"✓ Saved best model (val_acc: {val_acc:.4f})")
+            print(f"Saved best model (val_acc: {val_acc:.4f})")
+    
+    # Save final weight snapshot
+    weight_snapshot = get_weight_snapshot(model)
+    weight_history.append(weight_snapshot)
+    
+    # Save weight history for PCA visualization
+    weight_history = np.array(weight_history)
+    np.save('weight_history.npy', weight_history)
+    print(f"\nSaved weight history: {weight_history.shape}")
     
     # Test on best model
-    print("Testing on best model...")
+    print("\nTesting on best model...")
     model.load_state_dict(torch.load('best_model.pth'))
     test_loss, test_acc = validate(model, test_loader, criterion, device)
     print(f"Test Loss: {test_loss:.4f} | Test Acc: {test_acc:.4f}")
@@ -310,10 +316,10 @@ def main():
     # Plot training curves
     plot_training_curves(history)
     
-    print("Training Complete!")
-    print("="*50)
+    print("\nTraining Complete!")
+    print("Next step: Run 'python pca_visualizations.py' to create PCA plots")
 
-# PLOTTING 
+# PLOTTING
 def plot_training_curves(history):
     """Plot loss and accuracy curves"""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))

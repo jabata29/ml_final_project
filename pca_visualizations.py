@@ -285,7 +285,6 @@ def main():
     print("\nGenerated files:")
     print("  1. pca_weight_evolution.png")
     print("  2. pca_prediction_surface.png")
-    print("\nInclude both of these in your final report!")
 
 if __name__ == "__main__":
     main()

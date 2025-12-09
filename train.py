@@ -1,16 +1,4 @@
-"""
-Animal Classification - Training Script with PCA Support
-This version saves weight snapshots during training for PCA visualization.
 
-Expected folder structure:
-animal data/
-    mammal/
-    reptile/
-    bird/
-    fish/
-    amphibian/
-    insect/
-"""
 
 import torch
 import torch.nn as nn
@@ -321,7 +309,6 @@ def main():
 
 # PLOTTING
 def plot_training_curves(history):
-    """Plot loss and accuracy curves"""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
     
     # Loss plot

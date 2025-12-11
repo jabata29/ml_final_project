@@ -43,7 +43,6 @@ class AnimalDataset(Dataset):
 
 # HELPER FUNCTIONS
 def load_dataset(data_dir):
-    """Load all images and their labels"""
     image_paths = []
     labels = []
     
@@ -61,7 +60,6 @@ def load_dataset(data_dir):
     return image_paths, labels
 
 def get_model(num_classes=6):
-    """Load model architecture"""
     model = models.resnet18(pretrained=False)
     num_features = model.fc.in_features
     model.fc = nn.Linear(num_features, num_classes)
@@ -69,11 +67,6 @@ def get_model(num_classes=6):
 
 # VISUALIZATION 1: f(θ) - Weight Evolution
 def visualize_weight_evolution():
-    """
-    Creates 3D plot showing how model weights evolved during training.
-    X, Y = PCA components of weights
-    Z = Loss value at that epoch
-    """
     print("Creating Visualization 1: Model Weight Evolution f(θ)")
     
     # Load training history
@@ -146,11 +139,7 @@ def visualize_weight_evolution():
 
 # VISUALIZATION 2: g(x) - Prediction Surface
 def visualize_prediction_surface():
-    """
-    Creates 3D plot showing predictions across input space.
-    X, Y = PCA components of input images
-    Z = Model's predicted class
-    """
+
     print("\nCreating Visualization 2: Prediction Surface g(x)")
     
     # Load best model

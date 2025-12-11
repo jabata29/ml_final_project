@@ -89,6 +89,9 @@ def visualize_weight_evolution():
         results = json.load(f)
     train_losses = results['history']['train_loss']
     
+    # Match weight snapshots to losses (we have one extra weight snapshot at the end)
+    weight_history = weight_history[:len(train_losses)]
+    
     print(f"Loaded {len(weight_history)} weight snapshots")
     print(f"Weight vector dimension: {weight_history[0].shape[0]:,} parameters")
     
@@ -143,6 +146,11 @@ def visualize_weight_evolution():
 
 # VISUALIZATION 2: g(x) - Prediction Surface
 def visualize_prediction_surface():
+    """
+    Creates 3D plot showing predictions across input space.
+    X, Y = PCA components of input images
+    Z = Model's predicted class
+    """
     print("\nCreating Visualization 2: Prediction Surface g(x)")
     
     # Load best model

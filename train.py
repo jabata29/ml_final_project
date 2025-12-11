@@ -54,7 +54,6 @@ class AnimalDataset(Dataset):
 
 # DATA LOADING
 def load_dataset(data_dir):
-    """Load all images and their labels from the data directory"""
     image_paths = []
     labels = []
     
@@ -97,7 +96,6 @@ val_test_transform = transforms.Compose([
 
 # SPLIT DATA
 def split_data(image_paths, labels):
-    """Split data into train, val, test sets with stratification"""
     train_val_paths, test_paths, train_val_labels, test_labels = train_test_split(
         image_paths, labels, 
         test_size=TEST_SPLIT, 
@@ -122,7 +120,6 @@ def split_data(image_paths, labels):
 
 # MODEL DEFINITION
 def get_model(num_classes=6):
-    """Load pretrained ResNet18 and modify for our task"""
     model = models.resnet18(pretrained=True)
     num_features = model.fc.in_features
     model.fc = nn.Linear(num_features, num_classes)
@@ -130,7 +127,6 @@ def get_model(num_classes=6):
 
 # WEIGHT SNAPSHOT FUNCTION
 def get_weight_snapshot(model):
-    """Get flattened snapshot of all model weights for PCA"""
     weights = []
     for param in model.parameters():
         weights.append(param.data.cpu().numpy().flatten())
@@ -138,7 +134,6 @@ def get_weight_snapshot(model):
 
 # TRAINING FUNCTION
 def train_one_epoch(model, train_loader, criterion, optimizer, device):
-    """Train for one epoch"""
     model.train()
     running_loss = 0.0
     correct = 0
@@ -165,7 +160,6 @@ def train_one_epoch(model, train_loader, criterion, optimizer, device):
 
 # VALIDATION FUNCTION
 def validate(model, val_loader, criterion, device):
-    """Validate the model"""
     model.eval()
     running_loss = 0.0
     correct = 0
@@ -305,7 +299,6 @@ def main():
     plot_training_curves(history)
     
     print("\nTraining Complete!")
-    print("Next step: Run 'python pca_visualizations.py' to create PCA plots")
 
 # PLOTTING
 def plot_training_curves(history):

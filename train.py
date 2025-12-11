@@ -80,12 +80,13 @@ def load_dataset(data_dir):
 # DATA TRANSFORMS
 train_transform = transforms.Compose([
     transforms.Resize((IMG_SIZE, IMG_SIZE)),
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomRotation(20),
-    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3),
+    transforms.RandomRotation(30),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], 
-                       std=[0.229, 0.224, 0.225])
+                       std=[0.229, 0.224, 0.225]),
+    transforms.RandomErasing(p=0.2)
 ])
 
 val_test_transform = transforms.Compose([
@@ -122,8 +123,8 @@ def split_data(image_paths, labels):
 
 # MODEL DEFINITION
 def get_model(num_classes=6):
-    """Load pretrained ResNet18 and modify for our task"""
-    model = models.resnet18(pretrained=True)
+    """Load pretrained ResNet34 and modify for our task"""
+    model = models.resnet34(pretrained=True)
     num_features = model.fc.in_features
     model.fc = nn.Linear(num_features, num_classes)
     return model
@@ -218,6 +219,10 @@ def main():
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-5)
+
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='max', factor=0.5, patience=3, verbose=True
+    )
     
     # Training history
     history = {
@@ -247,7 +252,9 @@ def main():
         
         # Validate
         val_loss, val_acc = validate(model, val_loader, criterion, device)
-        
+
+        scheduler.step(val_acc)
+
         # Save history
         history['train_loss'].append(train_loss)
         history['train_acc'].append(train_acc)
@@ -281,7 +288,7 @@ def main():
     # Save results
     results = {
         'config': {
-            'model': 'ResNet18',
+            'model': 'ResNet34',
             'epochs': NUM_EPOCHS,
             'batch_size': BATCH_SIZE,
             'learning_rate': LEARNING_RATE,

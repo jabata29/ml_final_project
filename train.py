@@ -138,6 +138,7 @@ def get_weight_snapshot(model):
     return np.concatenate(weights)
 
 # TRAINING FUNCTION
+# TRAINING FUNCTION
 def train_one_epoch(model, train_loader, criterion, optimizer, device):
     """Train for one epoch"""
     model.train()

@@ -1,4 +1,17 @@
+"""
+Animal Classification using ResNet-34
 
+Model Architecture: ResNet-34
+Reference: He, K., Zhang, X., Ren, S., & Sun, J. (2016).
+           Deep Residual Learning for Image Recognition.
+           CVPR 2016.
+
+Implementation: PyTorch torchvision.models.resnet34
+Pretrained Weights: ImageNet-1K
+
+Dataset: Custom animal dataset (600 images, 6 classes)
+Training Details: Fine-tuned on animal images with cross-entropy loss
+"""
 
 import torch
 import torch.nn as nn
@@ -122,6 +135,9 @@ def split_data(image_paths, labels):
     return (train_paths, train_labels), (val_paths, val_labels), (test_paths, test_labels)
 
 # MODEL DEFINITION
+
+# Load ResNet-34 pretrained on ImageNet
+# Reference: He et al. (2016) CVPR - Deep Residual Learning for Image Recognition
 def get_model(num_classes=6):
     """Load pretrained ResNet34 and modify for our task"""
     model = models.resnet34(pretrained=True)
